@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, memo } from "react";
 import gsap from "gsap";
-import { motion, type Variants, useScroll, useTransform } from "framer-motion";
+import { motion, type Variants, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import {
   Calendar,
   Clock,
@@ -12,6 +12,7 @@ import {
   Crown,
   Shirt,
   Ticket,
+  Sparkles,
 } from "lucide-react";
 import { Cormorant_Garamond, Jost } from "next/font/google";
 
@@ -58,43 +59,35 @@ const TICKS = Array.from({ length: 12 }, (_, i) => {
   };
 });
 
-const DETAILS = [
-  { icon: Calendar, label: "Date", value: "21 November 2026" },
-  { icon: Clock, label: "Time", value: "8:00 PM" },
-  { icon: MapPin, label: "Venue", value: "Rajarata University of Sri Lanka" },
-  { icon: Shirt, label: "Dress Code", value: "Girls: .........\nBoys: ........." },
-];
-
 const POEM_STANZAS: string[][] = [
   [
-    "The halls once filled with laughter,",
-    "the steps we climbed as one —",
-    "tonight they hold a sacred truth:",
-    "a brotherhood not done.",
+    "Tonight the sky feels close to us,",
+    "Like heaven has come down to earth.",
+    "For our seniors, our guiding stars,",
+    "We celebrate your love and worth.",
   ],
   [
-    "For every hand that lifted us,",
-    "for every word that stayed,",
-    "for every dream you dared to dream",
-    "and every price you paid —",
+    "Music will play, laughter will flow,",
+    "Memories will shine like stars in the sky.",
+    "This is not a goodbye forever,",
+    "It is a promise that we will not say goodbye.",
   ],
   [
-    "We honor you, dear brothers,",
-    "as the sun begins to set.",
-    "Though paths may part, the bond remains —",
-    "a flame we won't forget.",
+    "One Night. A Thousand Memories. One Valinor.",
+    "A heaven we made together, you and me.",
+    "Seniors, juniors, one family,",
+    "Forever in our hearts you will be.",
   ],
 ];
 
-const EVENT_TARGET = new Date("2026-11-21T20:00:00+05:30").getTime();
+const EVENT_TARGET = new Date("2026-11-21T18:30:00+05:30").getTime();
 
 type Mote = { id: number; left: number; top: number; size: number; delay: number; dur: number; jade: boolean };
-type CountdownTime = { days: number; hours: number; minutes: number; seconds: number };
 
 /* ------------------------------------------------------------------ */
-/*  Small presentational pieces                                        */
+/*  Isolated Components (Performance Optimization)                     */
 /* ------------------------------------------------------------------ */
-function Cloud({ x, y, s }: { x: number; y: number; s: number }) {
+const Cloud = memo(function Cloud({ x, y, s }: { x: number; y: number; s: number }) {
   return (
     <span
       className="absolute block rounded-full"
@@ -107,9 +100,9 @@ function Cloud({ x, y, s }: { x: number; y: number; s: number }) {
       }}
     />
   );
-}
+});
 
-function CloudBank({ clouds, bankRef, origin, z = 20 }: {
+const CloudBank = memo(function CloudBank({ clouds, bankRef, origin, z = 20 }: {
   clouds: CloudSpec[]; bankRef: React.Ref<HTMLDivElement>; origin: string; z?: number;
 }) {
   return (
@@ -118,9 +111,9 @@ function CloudBank({ clouds, bankRef, origin, z = 20 }: {
       {clouds.map(([x, y, s], i) => <Cloud key={i} x={x} y={y} s={s} />)}
     </div>
   );
-}
+});
 
-function Pillar({ mirror = false }: { mirror?: boolean }) {
+const Pillar = memo(function Pillar({ mirror = false }: { mirror?: boolean }) {
   return (
     <g transform={mirror ? "translate(600 0) scale(-1 1)" : undefined}>
       <rect x="18" y="534" width="94" height="26" fill="url(#hg-stone-v)" />
@@ -137,9 +130,9 @@ function Pillar({ mirror = false }: { mirror?: boolean }) {
       <polygon className="hg-jade" points="66,452 72,466 66,480 60,466" fill="url(#hg-jade)" filter="url(#hg-glow)" />
     </g>
   );
-}
+});
 
-function Filigree({ mirror = false }: { mirror?: boolean }) {
+const Filigree = memo(function Filigree({ mirror = false }: { mirror?: boolean }) {
   return (
     <svg viewBox="0 0 150 450" preserveAspectRatio="none" aria-hidden="true"
       className="absolute inset-0 h-full w-full" style={mirror ? { transform: "scaleX(-1)" } : undefined}
@@ -157,9 +150,9 @@ function Filigree({ mirror = false }: { mirror?: boolean }) {
       <circle cx="104" cy="44" r="1.6" fill="#d3a82a" stroke="none" />
     </svg>
   );
-}
+});
 
-function SandTimer() {
+const SandTimer = memo(function SandTimer() {
   return (
     <div className="relative h-20 w-14 shrink-0 sm:h-24 sm:w-16" aria-hidden="true">
       <svg viewBox="0 0 80 120" className="h-full w-full drop-shadow-[0_4px_12px_rgba(201,162,39,0.25)]">
@@ -178,7 +171,47 @@ function SandTimer() {
       </svg>
     </div>
   );
-}
+});
+
+/* Isolated Countdown to prevent whole page re-renders every second */
+const CountdownDisplay = memo(function CountdownDisplay() {
+  const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    const tick = () => {
+      const diff = Math.max(0, EVENT_TARGET - Date.now());
+      setTime({
+        days: Math.floor(diff / 86400000),
+        hours: Math.floor((diff / 3600000) % 24),
+        minutes: Math.floor((diff / 60000) % 60),
+        seconds: Math.floor((diff / 1000) % 60),
+      });
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <div className="grid grid-cols-4 gap-3 sm:gap-6">
+      {[
+        { label: "Days", value: time.days },
+        { label: "Hours", value: time.hours },
+        { label: "Minutes", value: time.minutes },
+        { label: "Seconds", value: time.seconds },
+      ].map(({ label, value }) => (
+        <div key={label} className="flex min-w-[70px] flex-col items-center rounded-2xl border border-[#c9a227]/30 bg-white/80 px-4 py-4 shadow-sm backdrop-blur-md sm:min-w-[90px]">
+          <span className={`${display.className} text-3xl font-semibold tabular-nums text-[#8c6a12] sm:text-4xl`}>
+            {String(value).padStart(2, "0")}
+          </span>
+          <span className="mt-1 text-[10px] uppercase tracking-widest text-[#6b6450] sm:text-xs">
+            {label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+});
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -186,16 +219,14 @@ const containerVariants: Variants = {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Component                                                          */
+/*  Main Component                                                     */
 /* ------------------------------------------------------------------ */
 export default function HeavenlyInvitation() {
   const [isOpened, setIsOpened] = useState(false);
   const [gateGone, setGateGone] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [motes, setMotes] = useState<Mote[]>([]);
-  const [countdown, setCountdown] = useState<CountdownTime>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-
-  // Fix: defer new Date() to client effect
   const [year, setYear] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -218,6 +249,7 @@ export default function HeavenlyInvitation() {
   const rightBankRef = useRef<HTMLDivElement>(null);
   const frontBankRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLElement>(null); // Ref for IntersectionObserver
 
   const startedRef = useRef(false);
   const tlRef = useRef<gsap.core.Timeline | null>(null);
@@ -227,17 +259,17 @@ export default function HeavenlyInvitation() {
   const unlockSoundRef = useRef<HTMLAudioElement | null>(null);
   const ambientSoundRef = useRef<HTMLAudioElement | null>(null);
 
-  /* ---- Scroll-linked parallax on the drifting clouds ---- */
   const { scrollY } = useScroll();
   const cloudsParallax = useTransform(scrollY, [0, 1000], [0, -80]);
 
-  /* ---- Fix: set year only on the client, after mount ---- */
+  /* ---- Initial Mount & Preload Image ---- */
   useEffect(() => {
     setYear(new Date().getFullYear());
-  }, []);
 
-  /* ---- motes ---- */
-  useEffect(() => {
+    // Preload the university image for instant canvas generation later
+    const img = new Image();
+    img.src = "/uni.png";
+
     setMotes(
       Array.from({ length: 34 }, (_, i) => ({
         id: i, left: Math.random() * 100, top: Math.random() * 80,
@@ -245,75 +277,86 @@ export default function HeavenlyInvitation() {
         dur: 6 + Math.random() * 6, jade: Math.random() < 0.35,
       }))
     );
-  }, []);
 
-  useEffect(() => {
     return () => {
       unlockSoundRef.current?.pause();
       ambientSoundRef.current?.pause();
     };
   }, []);
 
-  /* ---- Countdown ---- */
+  /* ---- Optimized Auto-mute (Intersection Observer) ---- */
   useEffect(() => {
-    const tick = () => {
-      const diff = Math.max(0, EVENT_TARGET - Date.now());
-      setCountdown({
-        days: Math.floor(diff / 86400000),
-        hours: Math.floor((diff / 3600000) % 24),
-        minutes: Math.floor((diff / 60000) % 60),
-        seconds: Math.floor((diff / 1000) % 60),
-      });
-    };
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
+    if (!footerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && ambientSoundRef.current && !ambientSoundRef.current.paused) {
+          gsap.to(ambientSoundRef.current, {
+            volume: 0,
+            duration: 2,
+            onComplete: () => {
+              if (ambientSoundRef.current) ambientSoundRef.current.pause();
+              setIsMuted(true);
+            }
+          });
+        }
+      },
+      { threshold: 0.1 } // Triggers when 10% of footer becomes visible
+    );
+
+    observer.observe(footerRef.current);
+    return () => observer.disconnect();
   }, []);
 
-  /* ---- Hero reveal: milestone → typewriter poem → title reveal → content ---- */
+  /* ---- GSAP Hero Reveal ---- */
   useEffect(() => {
     if (!isOpened || !heroRef.current) return;
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) {
-      gsap.set([".reveal-milestone", ".poem-char", ".title-char", ".reveal-content"], { opacity: 1, filter: "none", y: 0, scale: 1 });
+      gsap.set([".reveal-milestone", ".reveal-poem-title", ".poem-char", ".reveal-btn"], { opacity: 1, filter: "none", y: 0, scale: 1 });
       return;
     }
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ delay: 0.4 });
 
-      // 1. Milestone text
       tl.fromTo(".reveal-milestone",
         { opacity: 0, y: 30 },
-        { opacity: 1, y: 0, duration: 0.9, ease: "power3.out" }
+        { opacity: 1, y: 0, duration: 0.9, stagger: 0.2, ease: "power3.out" }
       );
 
-      // 2. Poem — SLOW typewriter, character by character
+      tl.to(".reveal-poem-title", { opacity: 1, duration: 0.6, ease: "power2.out" }, "+=0.2");
+
       tl.to(".poem-char",
         { opacity: 1, duration: 0.01, stagger: { each: 0.018, from: "start" }, ease: "none" },
-        "+=0.5"
+        "+=0.2"
       );
 
-      // 3. Title — dramatic letter-by-letter heavenly blur reveal
-      tl.fromTo(".title-char",
-        { opacity: 0, y: 50, filter: "blur(18px)", scale: 1.25 },
-        { opacity: 1, y: 0, filter: "blur(0px)", scale: 1, duration: 0.9, stagger: 0.04, ease: "power3.out" },
-        "+=0.3"
+      tl.fromTo(".reveal-btn",
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" },
+        "+=0.4"
       );
 
-      // 4. Everything else (desc + countdown + details + buttons)
-      tl.fromTo(".reveal-content",
-        { opacity: 0, y: 25 },
-        { opacity: 1, y: 0, duration: 0.8, stagger: 0.2, ease: "power3.out" },
-        "-=0.3"
-      );
     }, heroRef);
 
     return () => { ctx.revert(); };
   }, [isOpened]);
 
-  /* ---- idle animations while locked ---- */
+  /* ---- Scroll to Details ---- */
+  useEffect(() => {
+    if (showDetails) {
+      setTimeout(() => {
+        const detailsSection = document.getElementById("invitation-details");
+        if (detailsSection) {
+          detailsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  }, [showDetails]);
+
+  /* ---- Gate Idle Animations ---- */
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) return;
@@ -343,118 +386,104 @@ export default function HeavenlyInvitation() {
     window.scrollTo({ top: 0, behavior: "auto" });
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Download beautiful TICKET as PNG                                */
-  /* ---------------------------------------------------------------- */
   const downloadTicket = () => {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const W = 900, H = 600;
+    const W = 1000, H = 600;
     canvas.width = W;
     canvas.height = H;
 
-    // Background gradient
-    const bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, "#fdfbf3");
-    bg.addColorStop(0.5, "#f5f2e8");
-    bg.addColorStop(1, "#e8e2d0");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
+    const img = new Image();
+    img.src = "/uni.png";
 
-    // Golden radial glow
-    const glow = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, 550);
-    glow.addColorStop(0, "rgba(233,200,90,0.28)");
-    glow.addColorStop(1, "rgba(233,200,90,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, W, H);
+    img.onload = () => {
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0, "#fdfbf3");
+      bg.addColorStop(0.5, "#f5f2e8");
+      bg.addColorStop(1, "#e8e2d0");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
 
-    // Outer gold border
-    ctx.strokeStyle = "#c9a227";
-    ctx.lineWidth = 5;
-    ctx.strokeRect(20, 20, W - 40, H - 40);
-    // Inner thin border
-    ctx.strokeStyle = "rgba(201,162,39,0.55)";
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(35, 35, W - 70, H - 70);
+      const glow = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, 600);
+      glow.addColorStop(0, "rgba(233,200,90,0.35)");
+      glow.addColorStop(1, "rgba(233,200,90,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, W, H);
 
-    // Diamond helper
-    const diamond = (cx: number, cy: number, size: number) => {
+      ctx.strokeStyle = "#c9a227";
+      ctx.lineWidth = 6;
+      ctx.strokeRect(20, 20, W - 40, H - 40);
+      ctx.strokeStyle = "rgba(201,162,39,0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(35, 35, W - 70, H - 70);
+
+      ctx.strokeStyle = "#c9a227";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 8]);
       ctx.beginPath();
-      ctx.moveTo(cx, cy - size);
-      ctx.lineTo(cx + size, cy);
-      ctx.lineTo(cx, cy + size);
-      ctx.lineTo(cx - size, cy);
-      ctx.closePath();
+      ctx.moveTo(450, 35);
+      ctx.lineTo(450, H - 35);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const imgWidth = 360;
+      const imgHeight = (img.height / img.width) * imgWidth;
+      ctx.drawImage(img, 45, H / 2 - imgHeight / 2, imgWidth, imgHeight);
+
+      const textX = 725;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.fillStyle = "#5e4508";
+      ctx.font = "bold 72px Georgia, serif";
+      ctx.fillText("VALINOR '26", textX, 130);
+
+      ctx.fillStyle = "#8c6a12";
+      ctx.font = "italic 26px Georgia, serif";
+      ctx.fillText("A Night Where Legends Say Goodbye", textX, 180);
+
+      ctx.strokeStyle = "#c9a227";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(textX - 180, 215);
+      ctx.lineTo(textX + 180, 215);
+      ctx.stroke();
+
+      const c1 = 600, c2 = 850, r1 = 280, r2 = 370;
+
+      ctx.font = "italic 20px Georgia, serif";
+      ctx.fillStyle = "#8c6a12";
+      ctx.fillText("DATE", c1, r1);
+      ctx.fillText("TIME", c2, r1);
+      ctx.fillText("VENUE", c1, r2);
+      ctx.fillText("DRESS CODE", c2, r2);
+
+      ctx.font = "bold 28px Georgia, serif";
+      ctx.fillStyle = "#2a2418";
+      ctx.fillText("21st Nov 2026", c1, r1 + 35);
+      ctx.fillText("6:30 PM", c2, r1 + 35);
+      ctx.fillText("AVARAGIRA", c1, r2 + 35);
+      ctx.fillText("White / Black", c2, r2 + 35);
+
+      ctx.font = "italic 22px Georgia, serif";
+      ctx.fillStyle = "#8c6a12";
+      ctx.fillText("One Night. A Thousand Memories.", textX, 480);
+
+      ctx.font = "14px Jost, sans-serif";
+      ctx.fillStyle = "#a09579";
+      ctx.fillText("Presented by Batch 2022 | In honour of Batch 2021", textX, 520);
+
+      const link = document.createElement("a");
+      link.download = "valinor-26-ticket.png";
+      link.href = canvas.toDataURL("image/png");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     };
-
-    // Top diamond
-    ctx.fillStyle = "#8fdc1c";
-    diamond(W / 2, 68, 8);
-    ctx.fill();
-
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    // Subtitle
-    ctx.fillStyle = "#8c6a12";
-    ctx.font = "italic 24px Georgia, serif";
-    ctx.fillText("You Are Cordially Invited To", W / 2, 125);
-
-    // Title
-    ctx.fillStyle = "#5e4508";
-    ctx.font = "bold 66px Georgia, serif";
-    ctx.fillText("The Grand Going Down", W / 2, 195);
-
-    // Divider
-    ctx.strokeStyle = "#c9a227";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(W / 2 - 200, 235);
-    ctx.lineTo(W / 2 + 200, 235);
-    ctx.stroke();
-    ctx.fillStyle = "#c9a227";
-    diamond(W / 2, 235, 6);
-    ctx.fill();
-
-    // Details 2x2
-    const col1 = W * 0.28, col2 = W * 0.72, row1 = 305, row2 = 405;
-
-    ctx.font = "italic 20px Georgia, serif";
-    ctx.fillStyle = "#8c6a12";
-    ctx.fillText("DATE", col1, row1);
-    ctx.fillText("TIME", col2, row1);
-    ctx.fillText("VENUE", W / 2, row2);
-
-    ctx.font = "bold 30px Georgia, serif";
-    ctx.fillStyle = "#2a2418";
-    ctx.fillText("21 Nov 2026", col1, row1 + 42);
-    ctx.fillText("8:00 PM", col2, row1 + 42);
-    ctx.fillText("Rajarata University of Sri Lanka", W / 2, row2 + 42);
-
-    // Dress code
-    ctx.font = "italic 18px Georgia, serif";
-    ctx.fillStyle = "#6b6450";
-    ctx.fillText("Dress Code   ·   Girls: .........   ·   Boys: .........", W / 2, 492);
-
-    // Bottom tagline
-    ctx.font = "italic 22px Georgia, serif";
-    ctx.fillStyle = "#8c6a12";
-    ctx.fillText("We Hope Your Presence", W / 2, 545);
-
-    // Download
-    const link = document.createElement("a");
-    link.download = "grand-going-down-ticket.png";
-    link.href = canvas.toDataURL("image/png");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Unlock sequence                                                 */
-  /* ---------------------------------------------------------------- */
   const handleUnlock = () => {
     if (startedRef.current) return;
     startedRef.current = true;
@@ -530,9 +559,6 @@ export default function HeavenlyInvitation() {
     if (ambientSoundRef.current) ambientSoundRef.current.muted = next;
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Render                                                           */
-  /* ---------------------------------------------------------------- */
   return (
     <div
       ref={containerRef}
@@ -572,192 +598,192 @@ export default function HeavenlyInvitation() {
         }
       `}</style>
 
-      {/* ============================================================
-          1. HEAVENLY GATE OVERLAY
-      ============================================================ */}
-      {!gateGone && (
-        <div
-          ref={gateWrapperRef}
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
-          style={{ background: "radial-gradient(ellipse at 50% 38%, #fcf9ee 0%, #e9e7df 45%, #c8c9c5 100%)" }}
-        >
-          <div className="pointer-events-none absolute inset-0 z-[1]" aria-hidden="true">
-            {motes.map((m) => (
-              <span
-                key={m.id}
-                className="hg-mote absolute rounded-full"
-                style={{
-                  left: `${m.left}%`, top: `${m.top}%`, width: m.size, height: m.size,
-                  background: m.jade ? "#b9ff3a" : "#f0cf6a",
-                  boxShadow: m.jade ? "0 0 8px 2px rgba(150,230,40,.8)" : "0 0 8px 2px rgba(240,200,90,.8)",
-                  animationDelay: `${m.delay}s`, "--d": `${m.dur}s`,
-                } as React.CSSProperties}
-              />
-            ))}
-          </div>
-
-          <CloudBank clouds={LEFT_BANK} bankRef={leftBankRef} origin="0% 100%" />
-          <CloudBank clouds={RIGHT_BANK} bankRef={rightBankRef} origin="100% 100%" />
-
-          <div
-            ref={gateFrameRef}
-            className="relative z-10"
-            style={{ width: "min(120vw, calc(82vh * 15 / 16))", aspectRatio: "15 / 16", transformOrigin: "50% 58%" }}
-          >
-            <div
-              className="absolute left-1/4 top-[17.1875%] z-[1] h-[70.3125%] w-1/2 overflow-hidden"
-              style={{
-                borderRadius: "50% 50% 0 0 / 33.333% 33.333% 0 0",
-                background: "radial-gradient(ellipse at 50% 55%, #fffdf0 0%, #f4ecc8 38%, #dcd9cf 80%)",
-              }}
-            >
-              <div ref={lightRef} className="absolute inset-0 opacity-0"
-                style={{ background: "radial-gradient(circle at 50% 55%, #ffffff 0%, rgba(255,244,190,.95) 30%, rgba(255,236,150,0) 70%)" }} />
-            </div>
-
-            <div className="absolute left-1/4 top-[17.1875%] z-[2] h-[70.3125%] w-1/2" style={{ perspective: "1600px" }}>
-              <div ref={leftDoorRef} className="absolute inset-y-0 left-0 w-1/2 overflow-hidden border-r-2 border-[#d9b640]/80"
-                style={{
-                  transformOrigin: "left center",
-                  borderTopLeftRadius: "100% 33.333%",
-                  background: "linear-gradient(100deg, rgba(255,255,255,.55) 0%, rgba(247,243,228,.8) 60%, rgba(255,246,200,.92) 100%)",
-                }}>
-                <Filigree />
-              </div>
-              <div ref={rightDoorRef} className="absolute inset-y-0 right-0 w-1/2 overflow-hidden border-l-2 border-[#d9b640]/80"
-                style={{
-                  transformOrigin: "right center",
-                  borderTopRightRadius: "100% 33.333%",
-                  background: "linear-gradient(260deg, rgba(255,255,255,.55) 0%, rgba(247,243,228,.8) 60%, rgba(255,246,200,.92) 100%)",
-                }}>
-                <Filigree mirror />
-              </div>
-
-              <div ref={seamRef} className="pointer-events-none absolute top-0 z-[4] h-full opacity-0"
-                style={{
-                  left: "calc(50% - 5px)", width: 10,
-                  background: "linear-gradient(to bottom, rgba(255,255,255,0), #fff6c8 15%, #ffffff 50%, #fff6c8 85%, rgba(255,255,255,0))",
-                  boxShadow: "0 0 30px 12px rgba(255,236,150,.8)", filter: "blur(1.5px)",
-                }} />
-
-              <div className="absolute left-1/2 top-[50%] z-[5] w-[64%] -translate-x-1/2 -translate-y-1/2">
-                <div ref={lockGroupRef} className="relative">
-                  <div ref={lockGlowRef} className="pointer-events-none absolute rounded-full opacity-60"
-                    style={{ inset: "-25%", background: "radial-gradient(circle, rgba(255,246,196,.95) 0%, rgba(233,200,90,.45) 38%, rgba(233,200,90,0) 68%)" }} />
-                  <button type="button" onClick={handleUnlock} aria-label="Unlock the heavenly gate"
-                    className="relative block aspect-square w-full cursor-pointer rounded-full transition-[filter] duration-300 hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#7fd114]">
-                    <svg viewBox="0 0 200 200" className="h-full w-full overflow-visible" aria-hidden="true">
-                      <defs>
-                        <linearGradient id="lk-gold" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0" stopColor="#fff1a8" /><stop offset="0.5" stopColor="#e9c85a" /><stop offset="1" stopColor="#b58a1a" />
-                        </linearGradient>
-                        <linearGradient id="lk-pearl" x1="0" y1="0" x2="1" y2="1">
-                          <stop offset="0" stopColor="#ffffff" /><stop offset="1" stopColor="#efe6c4" />
-                        </linearGradient>
-                        <radialGradient id="lk-jade">
-                          <stop offset="0" stopColor="#f4ffd0" /><stop offset="0.45" stopColor="#b9ff3a" /><stop offset="1" stopColor="#6fdc12" />
-                        </radialGradient>
-                        <filter id="lk-glow" x="-50%" y="-50%" width="200%" height="200%">
-                          <feGaussianBlur stdDeviation="3.5" result="b" />
-                          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-                        </filter>
-                      </defs>
-
-                      <g ref={ringRef}>
-                        <circle cx="100" cy="100" r="92" fill="none" stroke="#d3a82a" strokeWidth="1.2" strokeDasharray="2 6" />
-                        <circle cx="100" cy="100" r="84" fill="none" stroke="#d3a82a" strokeWidth="1" opacity="0.5" />
-                        {TICKS.map((t, i) => <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke="#d3a82a" strokeWidth="2" />)}
-                      </g>
-
-                      <g ref={boltLRef}>
-                        <rect x="0" y="94" width="54" height="12" rx="3" fill="url(#lk-gold)" />
-                        <line x1="8" y1="100" x2="44" y2="100" stroke="#8a6612" strokeWidth="1" opacity="0.6" />
-                      </g>
-                      <g ref={boltRRef}>
-                        <rect x="146" y="94" width="54" height="12" rx="3" fill="url(#lk-gold)" />
-                        <line x1="156" y1="100" x2="192" y2="100" stroke="#8a6612" strokeWidth="1" opacity="0.6" />
-                      </g>
-
-                      <g filter="url(#lk-glow)">
-                        <polygon points="100,18 152,100 100,182 48,100" fill="url(#lk-pearl)" stroke="url(#lk-gold)" strokeWidth="4" />
-                        <polygon points="100,44 130,100 100,156 70,100" fill="rgba(255,255,255,.35)" stroke="#d3a82a" strokeWidth="1.5" />
-                      </g>
-
-                      <g className="hg-jade" filter="url(#lk-glow)">
-                        <polygon points="100,48 108,62 100,76 92,62" fill="url(#lk-jade)" />
-                        <polygon points="100,128 105,138 100,148 95,138" fill="url(#lk-jade)" />
-                      </g>
-
-                      <g ref={keyRef}>
-                        <circle cx="100" cy="98" r="9" fill="#3a2e08" />
-                        <path d="M96,102 L104,102 L108,126 L92,126 Z" fill="#3a2e08" />
-                      </g>
-                    </svg>
-                  </button>
+      {/* GATE OVERLAY */}
+            {!gateGone && (
+              <div
+                ref={gateWrapperRef}
+                className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
+                style={{ background: "radial-gradient(ellipse at 50% 38%, #fcf9ee 0%, #e9e7df 45%, #c8c9c5 100%)" }}
+              >
+                <div className="pointer-events-none absolute inset-0 z-[1]" aria-hidden="true">
+                  {motes.map((m) => (
+                    <span
+                      key={m.id}
+                      className="hg-mote absolute rounded-full"
+                      style={{
+                        left: `${m.left}%`, top: `${m.top}%`, width: m.size, height: m.size,
+                        background: m.jade ? "#b9ff3a" : "#f0cf6a",
+                        boxShadow: m.jade ? "0 0 8px 2px rgba(150,230,40,.8)" : "0 0 8px 2px rgba(240,200,90,.8)",
+                        animationDelay: `${m.delay}s`, "--d": `${m.dur}s`,
+                      } as React.CSSProperties}
+                    />
+                  ))}
                 </div>
+
+                <CloudBank clouds={LEFT_BANK} bankRef={leftBankRef} origin="0% 100%" />
+                <CloudBank clouds={RIGHT_BANK} bankRef={rightBankRef} origin="100% 100%" />
+
+                <div
+                  ref={gateFrameRef}
+                  className="relative z-10"
+                  style={{ width: "min(120vw, calc(82vh * 15 / 16))", aspectRatio: "15 / 16", transformOrigin: "50% 58%" }}
+                >
+                  {/* VALINOR '26 Title at the top of the gate */}
+                  <p className={`${display.className} absolute inset-x-0 -top-16 z-[30] text-center text-3xl font-bold tracking-[0.2em] text-[#8c6a12] drop-shadow-md sm:text-4xl`}>
+                    VALINOR '26
+                  </p>
+
+                  <div
+                    className="absolute left-1/4 top-[17.1875%] z-[1] h-[70.3125%] w-1/2 overflow-hidden"
+                    style={{
+                      borderRadius: "50% 50% 0 0 / 33.333% 33.333% 0 0",
+                      background: "radial-gradient(ellipse at 50% 55%, #fffdf0 0%, #f4ecc8 38%, #dcd9cf 80%)",
+                    }}
+                  >
+                    <div ref={lightRef} className="absolute inset-0 opacity-0"
+                      style={{ background: "radial-gradient(circle at 50% 55%, #ffffff 0%, rgba(255,244,190,.95) 30%, rgba(255,236,150,0) 70%)" }} />
+                  </div>
+
+                  <div className="absolute left-1/4 top-[17.1875%] z-[2] h-[70.3125%] w-1/2" style={{ perspective: "1600px" }}>
+                    <div ref={leftDoorRef} className="absolute inset-y-0 left-0 w-1/2 overflow-hidden border-r-2 border-[#d9b640]/80"
+                      style={{
+                        transformOrigin: "left center",
+                        borderTopLeftRadius: "100% 33.333%",
+                        background: "linear-gradient(100deg, rgba(255,255,255,.55) 0%, rgba(247,243,228,.8) 60%, rgba(255,246,200,.92) 100%)",
+                      }}>
+                      <Filigree />
+                    </div>
+                    <div ref={rightDoorRef} className="absolute inset-y-0 right-0 w-1/2 overflow-hidden border-l-2 border-[#d9b640]/80"
+                      style={{
+                        transformOrigin: "right center",
+                        borderTopRightRadius: "100% 33.333%",
+                        background: "linear-gradient(260deg, rgba(255,255,255,.55) 0%, rgba(247,243,228,.8) 60%, rgba(255,246,200,.92) 100%)",
+                      }}>
+                      <Filigree mirror />
+                    </div>
+
+                    <div ref={seamRef} className="pointer-events-none absolute top-0 z-[4] h-full opacity-0"
+                      style={{
+                        left: "calc(50% - 5px)", width: 10,
+                        background: "linear-gradient(to bottom, rgba(255,255,255,0), #fff6c8 15%, #ffffff 50%, #fff6c8 85%, rgba(255,255,255,0))",
+                        boxShadow: "0 0 30px 12px rgba(255,236,150,.8)", filter: "blur(1.5px)",
+                      }} />
+
+                    <div className="absolute left-1/2 top-[50%] z-[5] w-[64%] -translate-x-1/2 -translate-y-1/2">
+                      <div ref={lockGroupRef} className="relative">
+                        <div ref={lockGlowRef} className="pointer-events-none absolute rounded-full opacity-60"
+                          style={{ inset: "-25%", background: "radial-gradient(circle, rgba(255,246,196,.95) 0%, rgba(233,200,90,.45) 38%, rgba(233,200,90,0) 68%)" }} />
+                        <button type="button" onClick={handleUnlock} aria-label="Unlock the heavenly gate"
+                          className="relative block aspect-square w-full cursor-pointer rounded-full transition-[filter] duration-300 hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#7fd114]">
+                          <svg viewBox="0 0 200 200" className="h-full w-full overflow-visible" aria-hidden="true">
+                            <defs>
+                              <linearGradient id="lk-gold" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0" stopColor="#fff1a8" /><stop offset="0.5" stopColor="#e9c85a" /><stop offset="1" stopColor="#b58a1a" />
+                              </linearGradient>
+                              <linearGradient id="lk-pearl" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0" stopColor="#ffffff" /><stop offset="1" stopColor="#efe6c4" />
+                              </linearGradient>
+                              <radialGradient id="lk-jade">
+                                <stop offset="0" stopColor="#f4ffd0" /><stop offset="0.45" stopColor="#b9ff3a" /><stop offset="1" stopColor="#6fdc12" />
+                              </radialGradient>
+                              <filter id="lk-glow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feGaussianBlur stdDeviation="3.5" result="b" />
+                                <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+                              </filter>
+                            </defs>
+
+                            <g ref={ringRef}>
+                              <circle cx="100" cy="100" r="92" fill="none" stroke="#d3a82a" strokeWidth="1.2" strokeDasharray="2 6" />
+                              <circle cx="100" cy="100" r="84" fill="none" stroke="#d3a82a" strokeWidth="1" opacity="0.5" />
+                              {TICKS.map((t, i) => <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke="#d3a82a" strokeWidth="2" />)}
+                            </g>
+
+                            <g ref={boltLRef}>
+                              <rect x="0" y="94" width="54" height="12" rx="3" fill="url(#lk-gold)" />
+                              <line x1="8" y1="100" x2="44" y2="100" stroke="#8a6612" strokeWidth="1" opacity="0.6" />
+                            </g>
+                            <g ref={boltRRef}>
+                              <rect x="146" y="94" width="54" height="12" rx="3" fill="url(#lk-gold)" />
+                              <line x1="156" y1="100" x2="192" y2="100" stroke="#8a6612" strokeWidth="1" opacity="0.6" />
+                            </g>
+
+                            <g filter="url(#lk-glow)">
+                              <polygon points="100,18 152,100 100,182 48,100" fill="url(#lk-pearl)" stroke="url(#lk-gold)" strokeWidth="4" />
+                              <polygon points="100,44 130,100 100,156 70,100" fill="rgba(255,255,255,.35)" stroke="#d3a82a" strokeWidth="1.5" />
+                            </g>
+
+                            <g className="hg-jade" filter="url(#lk-glow)">
+                              <polygon points="100,48 108,62 100,76 92,62" fill="url(#lk-jade)" />
+                              <polygon points="100,128 105,138 100,148 95,138" fill="url(#lk-jade)" />
+                            </g>
+
+                            <g ref={keyRef}>
+                              <circle cx="100" cy="98" r="9" fill="#3a2e08" />
+                              <path d="M96,102 L104,102 L108,126 L92,126 Z" fill="#3a2e08" />
+                            </g>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <svg viewBox="0 0 600 640" className="pointer-events-none absolute inset-0 z-[3] h-full w-full overflow-visible" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="hg-stone-v" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stopColor="#6d6c62" /><stop offset="1" stopColor="#34332e" />
+                      </linearGradient>
+                      <linearGradient id="hg-stone-h" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" stopColor="#5b5a52" /><stop offset="0.5" stopColor="#3f3e38" /><stop offset="1" stopColor="#55544c" />
+                      </linearGradient>
+                      <linearGradient id="hg-gold" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" stopColor="#fff1a8" /><stop offset="0.5" stopColor="#e9c85a" /><stop offset="1" stopColor="#b58a1a" />
+                      </linearGradient>
+                      <radialGradient id="hg-jade">
+                        <stop offset="0" stopColor="#f4ffd0" /><stop offset="0.45" stopColor="#b9ff3a" /><stop offset="1" stopColor="#6fdc12" />
+                      </radialGradient>
+                      <radialGradient id="hg-star">
+                        <stop offset="0" stopColor="#ffffff" /><stop offset="0.6" stopColor="#fff1a8" /><stop offset="1" stopColor="#e9c85a" />
+                      </radialGradient>
+                      <filter id="hg-glow" x="-100%" y="-100%" width="300%" height="300%">
+                        <feGaussianBlur stdDeviation="4" result="b" />
+                        <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+                      </filter>
+                    </defs>
+
+                    <path d="M20,260 A280,250 0 0 1 580,260" fill="none" stroke="rgba(255,255,255,.95)" strokeWidth="1.2" />
+                    <path d="M52,260 A248,222 0 0 1 548,260" fill="none" stroke="rgba(233,200,90,.75)" strokeWidth="1" />
+                    <ellipse cx="300" cy="610" rx="230" ry="16" fill="rgba(240,205,110,.28)" filter="url(#hg-glow)" />
+                    <rect x="120" y="560" width="360" height="10" fill="url(#hg-stone-v)" />
+                    <rect x="104" y="570" width="392" height="10" fill="url(#hg-stone-v)" />
+                    <rect x="88" y="580" width="424" height="10" fill="url(#hg-stone-v)" />
+                    <rect x="120" y="560" width="360" height="2" fill="#e9c85a" opacity="0.7" />
+                    <ellipse cx="300" cy="561" rx="150" ry="5" fill="rgba(255,244,190,.85)" filter="url(#hg-glow)" />
+                    <Pillar /><Pillar mirror />
+                    <path d="M106,560 V260 A194,194 0 0 1 494,260 V560 H450 V260 A150,150 0 0 0 150,260 V560 Z" fill="url(#hg-stone-v)" />
+                    <path d="M128,260 A172,172 0 0 1 472,260" fill="none" stroke="#e9c85a" strokeWidth="1" opacity="0.4" />
+                    <line x1="128" y1="260" x2="128" y2="560" stroke="#e9c85a" strokeWidth="1" opacity="0.35" />
+                    <line x1="472" y1="260" x2="472" y2="560" stroke="#e9c85a" strokeWidth="1" opacity="0.35" />
+                    <path d="M150,560 V260 A150,150 0 0 1 450,260 V560" fill="none" stroke="url(#hg-gold)" strokeWidth="3" filter="url(#hg-glow)" />
+                    <polygon points="300,22 309,58 344,66 309,74 300,112 291,74 256,66 291,58" fill="url(#hg-star)" filter="url(#hg-glow)" />
+                  </svg>
+
+                  <p ref={hintRef} className={`${display.className} hg-hint absolute inset-x-0 bottom-[3%] z-[30] text-center text-md italic text-[#6b5a1f]`}>
+                    Touch the seal to open the gate
+                  </p>
+                </div>
+
+                <CloudBank clouds={FRONT_BANK} bankRef={frontBankRef} origin="50% 100%" z={25} />
+
+                <div ref={mistRef} className="pointer-events-none absolute inset-0 z-40 opacity-0"
+                  style={{ background: "radial-gradient(circle at 50% 50%, #ffffff 0%, #f8f5ec 55%, #f5f2e8 100%)" }} />
               </div>
-            </div>
+            )}
 
-            <svg viewBox="0 0 600 640" className="pointer-events-none absolute inset-0 z-[3] h-full w-full overflow-visible" aria-hidden="true">
-              <defs>
-                <linearGradient id="hg-stone-v" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#6d6c62" /><stop offset="1" stopColor="#34332e" />
-                </linearGradient>
-                <linearGradient id="hg-stone-h" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0" stopColor="#5b5a52" /><stop offset="0.5" stopColor="#3f3e38" /><stop offset="1" stopColor="#55544c" />
-                </linearGradient>
-                <linearGradient id="hg-gold" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#fff1a8" /><stop offset="0.5" stopColor="#e9c85a" /><stop offset="1" stopColor="#b58a1a" />
-                </linearGradient>
-                <radialGradient id="hg-jade">
-                  <stop offset="0" stopColor="#f4ffd0" /><stop offset="0.45" stopColor="#b9ff3a" /><stop offset="1" stopColor="#6fdc12" />
-                </radialGradient>
-                <radialGradient id="hg-star">
-                  <stop offset="0" stopColor="#ffffff" /><stop offset="0.6" stopColor="#fff1a8" /><stop offset="1" stopColor="#e9c85a" />
-                </radialGradient>
-                <filter id="hg-glow" x="-100%" y="-100%" width="300%" height="300%">
-                  <feGaussianBlur stdDeviation="4" result="b" />
-                  <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-                </filter>
-              </defs>
-
-              <path d="M20,260 A280,250 0 0 1 580,260" fill="none" stroke="rgba(255,255,255,.95)" strokeWidth="1.2" />
-              <path d="M52,260 A248,222 0 0 1 548,260" fill="none" stroke="rgba(233,200,90,.75)" strokeWidth="1" />
-              <ellipse cx="300" cy="610" rx="230" ry="16" fill="rgba(240,205,110,.28)" filter="url(#hg-glow)" />
-              <rect x="120" y="560" width="360" height="10" fill="url(#hg-stone-v)" />
-              <rect x="104" y="570" width="392" height="10" fill="url(#hg-stone-v)" />
-              <rect x="88" y="580" width="424" height="10" fill="url(#hg-stone-v)" />
-              <rect x="120" y="560" width="360" height="2" fill="#e9c85a" opacity="0.7" />
-              <ellipse cx="300" cy="561" rx="150" ry="5" fill="rgba(255,244,190,.85)" filter="url(#hg-glow)" />
-              <Pillar /><Pillar mirror />
-              <path d="M106,560 V260 A194,194 0 0 1 494,260 V560 H450 V260 A150,150 0 0 0 150,260 V560 Z" fill="url(#hg-stone-v)" />
-              <path d="M128,260 A172,172 0 0 1 472,260" fill="none" stroke="#e9c85a" strokeWidth="1" opacity="0.4" />
-              <line x1="128" y1="260" x2="128" y2="560" stroke="#e9c85a" strokeWidth="1" opacity="0.35" />
-              <line x1="472" y1="260" x2="472" y2="560" stroke="#e9c85a" strokeWidth="1" opacity="0.35" />
-              <path d="M150,560 V260 A150,150 0 0 1 450,260 V560" fill="none" stroke="url(#hg-gold)" strokeWidth="3" filter="url(#hg-glow)" />
-              <polygon points="300,22 309,58 344,66 309,74 300,112 291,74 256,66 291,58" fill="url(#hg-star)" filter="url(#hg-glow)" />
-            </svg>
-
-            <p ref={hintRef} className={`${display.className} hg-hint absolute inset-x-0 bottom-[3%] z-[30] text-center text-lg italic text-[#6b5a1f]`}>
-              Touch the seal to open the gate
-            </p>
-          </div>
-
-          <CloudBank clouds={FRONT_BANK} bankRef={frontBankRef} origin="50% 100%" z={25} />
-
-          <div ref={mistRef} className="pointer-events-none absolute inset-0 z-40 opacity-0"
-            style={{ background: "radial-gradient(circle at 50% 50%, #ffffff 0%, #f8f5ec 55%, #f5f2e8 100%)" }} />
-        </div>
-      )}
-
-      {/* ============================================================
-          2. MAIN CONTENT
-      ============================================================ */}
+      {/* MAIN CONTENT */}
       <main ref={mainRef} className="relative flex min-h-[100svh] flex-col">
         <div className="pointer-events-none fixed inset-0 z-0"
           style={{ background: "radial-gradient(circle at 50% 12%, rgba(233,200,90,0.28) 0%, rgba(245,242,232,0) 60%)" }} />
 
-        {/* Scroll-parallax clouds */}
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-0 h-[34vh] overflow-hidden" aria-hidden="true">
           <motion.div className="absolute inset-0" style={{ y: cloudsParallax }}>
             <motion.div className="absolute inset-0" animate={{ x: [0, -24, 0] }}
@@ -780,7 +806,7 @@ export default function HeavenlyInvitation() {
           </button>
         </header>
 
-        {/* Hero — starts at TOP (no my-auto) */}
+        {/* Hero Section */}
         <motion.section
           variants={containerVariants}
           initial="hidden"
@@ -788,17 +814,22 @@ export default function HeavenlyInvitation() {
           ref={heroRef as React.RefObject<HTMLDivElement>}
           className="relative z-10 mx-auto flex w-full max-w-4xl flex-col items-center px-6 py-10 text-center"
         >
-          {/* 1. Milestone */}
-          <p className={`reveal-milestone ${display.className} mb-4 text-xl italic text-[#8c6a12] opacity-0`}>
-            A New Milestone Begins
+          <p className={`reveal-milestone ${display.className} mb-2 text-2xl font-semibold uppercase tracking-widest text-[#8c6a12] opacity-0 sm:text-3xl`}>
+            VALINOR '26
+          </p>
+          <p className="reveal-milestone mb-6 text-sm uppercase tracking-[0.3em] text-[#6b6450] opacity-0">
+            A Night Where Legends Say Goodbye !
           </p>
 
-          {/* 2. Poem — slow typewriter */}
-          <div className="mb-8 mt-2 max-w-2xl">
+          {/* Poem */}
+          <div className="relative mb-10 mt-2 w-full max-w-2xl overflow-hidden rounded-3xl border border-white/60 bg-white/40 p-8 shadow-[0_8px_32px_rgba(201,162,39,0.15)] backdrop-blur-xl sm:p-10">
+            <p className={`reveal-poem-title ${display.className} mb-6 text-xl font-semibold italic text-[#8c6a12] opacity-0 sm:text-2xl`}>
+              To Our Guiding Stars
+            </p>
             {POEM_STANZAS.map((stanza, si) => (
               <div key={si} className={si > 0 ? "mt-5" : ""}>
                 {stanza.map((line, li) => (
-                  <p key={li} className={`poem-line ${display.className} whitespace-pre-wrap text-lg italic leading-relaxed text-[#5e5846] sm:text-xl`}>
+                  <p key={li} className={`poem-line ${display.className} whitespace-pre-wrap text-lg italic leading-relaxed text-[#4a453a] sm:text-xl`}>
                     {Array.from(line).map((ch, ci) => (
                       <span key={ci} className="poem-char" style={{ opacity: 0 }}>
                         {ch}
@@ -810,154 +841,219 @@ export default function HeavenlyInvitation() {
             ))}
           </div>
 
-          {/* 3. University Image */}
-          <div className="reveal-content mb-8 mt-4 w-full max-w-xl px-4 opacity-0">
-            <img
-              src="/uni.png"
-              alt="Rajarata University of Sri Lanka"
-              className="mx-auto h-auto w-full object-contain drop-shadow-[0_15px_30px_rgba(201,162,39,0.2)]"
-            />
-          </div>
-
-          {/* 4. Jade diamond */}
-          <svg width="22" height="34" viewBox="0 0 22 34" className="reveal-heading mb-6 opacity-0" aria-hidden="true">
-            <polygon points="11,1 21,17 11,33 1,17" fill="none" stroke="#c9a227" strokeWidth="1.5" />
-            <polygon points="11,10 15,17 11,24 7,17" fill="#8fdc1c" />
-          </svg>
-
-          {/* 5. Title — dramatic letter-by-letter blur reveal */}
-          <h1 className={`${display.className} mb-6 bg-gradient-to-b from-[#a8820f] via-[#8c6a12] to-[#5e4508] bg-clip-text text-5xl font-semibold leading-[1.05] tracking-tight text-transparent sm:text-7xl md:text-8xl`}>
-            {"The Grand Going Down".split("").map((ch, i) => (
-              <span key={i} className="title-char inline-block" style={{ opacity: 0 }}>
-                {ch === " " ? "\u00A0" : ch}
-              </span>
-            ))}
-          </h1>
-
-          {/* 6. Description */}
-          <p className="reveal-content mb-10 max-w-2xl text-base font-light leading-relaxed text-[#5e5846] opacity-0 sm:text-lg">
-            We cordially invite you to grace the auspicious occasion as we lay the foundation for
-            our vision. Your presence will illuminate this momentous beginning.
-          </p>
-
-          {/* 7. Countdown + Sand Timer */}
-          <div className="reveal-content mb-10 flex w-full flex-wrap items-center justify-center gap-5 opacity-0 sm:gap-6">
-            <SandTimer />
-            <div className="grid grid-cols-4 gap-2 sm:gap-4">
-              {[
-                { label: "Days", value: countdown.days },
-                { label: "Hours", value: countdown.hours },
-                { label: "Minutes", value: countdown.minutes },
-                { label: "Seconds", value: countdown.seconds },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex min-w-[64px] flex-col items-center rounded-2xl border border-[#c9a227]/40 bg-white/60 px-3 py-3 backdrop-blur-md sm:min-w-[80px]">
-                  <span className={`${display.className} text-2xl font-semibold tabular-nums text-[#8c6a12] sm:text-3xl`}>
-                    {String(value).padStart(2, "0")}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-wider text-[#6b6450] sm:text-xs">
-                    {label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 8. Details */}
-          <dl className="reveal-content mb-10 grid w-full grid-cols-1 divide-y divide-[#c9a227]/30 overflow-hidden rounded-3xl border border-[#c9a227]/40 bg-white/55 opacity-0 backdrop-blur-md sm:grid-cols-2 sm:divide-x lg:grid-cols-4 lg:divide-y-0">
-            {DETAILS.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="flex flex-col items-center px-6 py-7 text-center">
-                <Icon className="mb-3 h-6 w-6 text-[#8c6a12]" aria-hidden="true" />
-                <dt className={`${display.className} mb-1 text-lg italic text-[#6b6450]`}>{label}</dt>
-                <dd className={`${display.className} whitespace-pre-line text-center text-xl font-semibold text-[#2a2418] sm:text-2xl`}>{value}</dd>
-              </div>
-            ))}
-          </dl>
-
-          {/* 9. Buttons */}
-          <div className="reveal-content flex flex-wrap items-center justify-center gap-4 opacity-0">
-            <motion.button
-              type="button"
-              onClick={downloadTicket}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              className="flex cursor-pointer items-center gap-2 rounded-full border-2 border-[#c9a227] bg-white/70 px-6 py-3.5 text-sm font-medium uppercase tracking-wider text-[#8c6a12] backdrop-blur-md transition-shadow hover:bg-white hover:shadow-[0_8px_30px_rgba(201,162,39,0.35)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#7fd114]"
-            >
-              <Ticket className="h-4 w-4" aria-hidden="true" />
-              Ticket
-            </motion.button>
-
-            <motion.button
-              type="button"
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              className="cursor-pointer rounded-full bg-gradient-to-r from-[#e9c85a] via-[#d9b640] to-[#c9a227] px-8 py-4 text-sm font-medium uppercase tracking-wider text-[#2b2205] shadow-[0_8px_30px_rgba(201,162,39,0.45)] transition-shadow hover:shadow-[0_8px_40px_rgba(201,162,39,0.7)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#7fd114]"
-            >
-              We Hope Your Presence
-            </motion.button>
-          </div>
+          {/* View Invitation Button */}
+          <motion.button
+            onClick={() => setShowDetails(true)}
+            className={`reveal-btn ${display.className} group relative flex items-center justify-center gap-3 overflow-hidden rounded-full border border-[#c9a227] bg-[#fdfbf3] px-10 py-4 text-xl font-semibold text-[#8c6a12] shadow-[0_0_20px_rgba(201,162,39,0.3)] transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(201,162,39,0.6)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#7fd114] opacity-0`}
+          >
+            <Sparkles className="h-5 w-5 text-[#c9a227] transition-transform group-hover:rotate-12" />
+            Click Here To View Invitation
+          </motion.button>
         </motion.section>
+
+        {/* DETAILS SECTION */}
+        <AnimatePresence>
+          {showDetails && (
+            <motion.section
+              id="invitation-details"
+              initial={{ opacity: 0, y: 80 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], staggerChildren: 0.2 }}
+              className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center px-4 py-10 text-center"
+            >
+              <div className="relative w-full overflow-hidden rounded-[3rem] p-1 bg-gradient-to-br from-[#e9c85a] via-[#f5f2e8] to-[#c9a227] shadow-[0_20px_50px_rgba(201,162,39,0.25)]">
+                <div className="rounded-[2.8rem] bg-[#fdfbf3]/95 px-6 py-12 backdrop-blur-xl sm:px-12 sm:py-16 flex flex-col items-center w-full">
+
+                  {/* Text Block */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2 }}
+                    className="mb-10 flex max-w-2xl flex-col gap-4 text-center"
+                  >
+                    <p className={`${display.className} text-2xl text-[#8c6a12] sm:text-3xl`}>Batch 2022 proudly presents</p>
+                    <p className="text-lg font-light leading-relaxed text-[#5e5846]">
+                      In honour of our beloved Seniors<br/><span className="font-semibold text-[#c9a227]">Batch 2021</span>
+                    </p>
+                    <p className="text-base font-light leading-relaxed text-[#5e5846] sm:text-lg">
+                      Join us for an evening of memories, music, laughter and farewell, as we step into the Blessed Empire one last time together.
+                    </p>
+                    <p className={`${display.className} text-xl italic text-[#8c6a12]`}>
+                      One Night. A Thousand Memories. One Valinor.
+                    </p>
+                    <p className="text-base font-light leading-relaxed text-[#5e5846] sm:text-lg">
+                      Your presence will make this farewell truly unforgettable.<br/>
+                      We can't wait to celebrate you, our Seniors.
+                    </p>
+                    <p className={`${display.className} mt-2 text-xl italic text-[#8c6a12]`}>
+                      With love,<br/>Batch 2022<br/><br/>Faculty of Management Studies<br/><br/>Rajarata University of Sri Lanka<br/>
+                    </p>
+                  </motion.div>
+
+                  {/* Countdown + Sand Timer */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.4 }}
+                    className="mb-14 flex w-full flex-wrap items-center justify-center gap-6"
+                  >
+                    <SandTimer />
+                    <CountdownDisplay />
+                  </motion.div>
+
+                  {/* Advanced Cards Layout */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.6 }}
+                    className="mb-14 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6"
+                  >
+                    {/* Date Card - Yellow */}
+                    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#e6bc3e] to-[#f8e189] p-6 shadow-xl text-left">
+                      <Calendar className="absolute -right-4 -bottom-4 h-32 w-32 text-black/5" />
+                      <div className="mb-6 inline-flex rounded-full bg-[#2a2418] p-2 text-[#f8e189]">
+                        <Calendar className="h-5 w-5" />
+                      </div>
+                      <p className="text-xs font-serif italic text-[#5e4508]">Date</p>
+                      <p className="mt-1 font-serif text-2xl font-bold text-[#2a2418]">21st November</p>
+                      <p className="font-serif text-sm font-semibold text-[#2a2418]">2026</p>
+                    </div>
+
+                    {/* Time Card - Dark Brown */}
+                    <div className="relative overflow-hidden rounded-3xl bg-[#2f270b] p-6 shadow-xl text-left">
+                      <Clock className="absolute -right-4 -bottom-4 h-32 w-32 text-white/5" />
+                      <div className="mb-6 inline-flex rounded-full bg-[#f8e189]/20 p-2 text-[#f8e189]">
+                        <Clock className="h-5 w-5" />
+                      </div>
+                      <p className="text-xs font-serif italic text-[#e9c85a]">Time</p>
+                      <p className="mt-1 font-serif text-2xl font-bold text-[#f8e189]">6:30 PM</p>
+                      <p className="font-serif text-sm font-semibold text-[#f8e189]">onwards</p>
+                    </div>
+
+                    {/* Venue Card - Light Cream */}
+                    <div className="relative overflow-hidden rounded-3xl border border-[#c9a227] bg-[#fdfbf3] p-6 shadow-xl text-left">
+                      <MapPin className="absolute -right-4 -bottom-4 h-32 w-32 text-[#c9a227]/5" />
+                      <div className="mb-6 inline-flex rounded-full border border-[#c9a227] bg-white p-2 text-[#c9a227]">
+                        <MapPin className="h-5 w-5" />
+                      </div>
+                      <p className="text-xs font-serif italic text-[#c9a227]">Venue</p>
+                      <p className="mt-1 font-serif text-2xl font-bold text-[#2a2418]">AVARAGIRA</p>
+                    </div>
+
+                    {/* Dress Code Card - Light Gold */}
+                    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#d4af37] to-[#e6c86e] p-6 shadow-xl text-left">
+                      <Shirt className="absolute -right-4 -bottom-4 h-32 w-32 text-white/10" />
+                      <div className="mb-6 inline-flex rounded-full bg-white/30 p-2 text-white">
+                        <Shirt className="h-5 w-5" />
+                      </div>
+                      <p className="text-xs font-serif italic text-white/90">Dress Code</p>
+                      <div className="mt-2 flex flex-col gap-2">
+                        <div className="flex items-center gap-2 rounded-full bg-[#fdfbf3] px-3 py-1.5 text-xs font-semibold text-[#2a2418]">
+                          <span className="h-3 w-3 rounded-full bg-white border border-[#ccc]"></span> Girls: White
+                        </div>
+                        <div className="flex items-center gap-2 rounded-full bg-[#2a2418] px-3 py-1.5 text-xs font-semibold text-white">
+                          <span className="h-3 w-3 rounded-full bg-black border border-[#555]"></span> Boys: Black
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Buttons */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.8 }}
+                    className="flex w-full flex-wrap items-center justify-center gap-6"
+                  >
+                    <button
+                      type="button"
+                      onClick={downloadTicket}
+                      className="flex cursor-pointer items-center gap-2 rounded-full border-2 border-[#c9a227] bg-white/70 px-8 py-4 text-sm font-medium uppercase tracking-wider text-[#8c6a12] backdrop-blur-md transition-all hover:scale-105 hover:bg-white hover:shadow-[0_8px_30px_rgba(201,162,39,0.35)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#7fd114]"
+                    >
+                      <Ticket className="h-5 w-5" aria-hidden="true" />
+                      Download Ticket
+                    </button>
+
+                    <button
+                      type="button"
+                      className="cursor-pointer rounded-full bg-gradient-to-r from-[#e9c85a] via-[#d9b640] to-[#c9a227] px-10 py-4 text-sm font-medium uppercase tracking-wider text-[#2b2205] shadow-[0_8px_30px_rgba(201,162,39,0.45)] transition-all hover:scale-105 hover:shadow-[0_8px_40px_rgba(201,162,39,0.7)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#7fd114]"
+                    >
+                      We Hope Your Presence
+                    </button>
+                  </motion.div>
+
+                  {/* Uni Image Added Below Buttons */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 1, delay: 1 }}
+                    className="mt-14 w-full max-w-2xl px-4"
+                  >
+                    <img
+                      src="/uni.png"
+                      alt="Rajarata University"
+                      className="mx-auto h-auto w-full object-contain drop-shadow-[0_20px_40px_rgba(201,162,39,0.25)]"
+                    />
+                  </motion.div>
+
+                </div>
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
 
         <div className="h-[18vh]" aria-hidden="true" />
 
-        {/* ============================================================
-            3. FOOTER (scroll-reveal)
-        ============================================================ */}
+        {/* FOOTER (Enhanced & Optimized) */}
         <motion.footer
-          initial={{ opacity: 0, y: 60 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          ref={footerRef}
+          initial="hidden"
+          whileInView="visible"
           viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 mt-8 border-t border-[#c9a227]/30 bg-gradient-to-b from-transparent via-white/30 to-white/60 backdrop-blur-sm"
+          variants={{
+            hidden: { opacity: 0, y: 60 },
+            visible: { opacity: 1, y: 0, transition: { duration: 1, ease: [0.22, 1, 0.36, 1], staggerChildren: 0.2 } }
+          }}
+          className="relative z-10 mt-8 border-t border-[#c9a227]/40 bg-gradient-to-b from-transparent via-white/40 to-[#fdfbf3]/80 backdrop-blur-md shadow-[0_-10px_40px_rgba(201,162,39,0.1)]"
         >
-          <div className="mx-auto max-w-4xl px-6 py-14">
-            {/* Ornamental divider */}
-            <div className="mb-8 flex justify-center">
-              <svg width="60" height="20" viewBox="0 0 60 20" aria-hidden="true">
-                <line x1="0" y1="10" x2="24" y2="10" stroke="#c9a227" strokeWidth="1" />
-                <polygon points="30,4 34,10 30,16 26,10" fill="#8fdc1c" stroke="#c9a227" strokeWidth="1" />
-                <line x1="36" y1="10" x2="60" y2="10" stroke="#c9a227" strokeWidth="1" />
+          <div className="mx-auto max-w-4xl px-6 py-16">
+            <motion.div variants={{ hidden: { opacity: 0, scale: 0.8 }, visible: { opacity: 1, scale: 1 } }} className="mb-8 flex justify-center">
+              <svg width="80" height="24" viewBox="0 0 80 24" aria-hidden="true">
+                <line x1="0" y1="12" x2="32" y2="12" stroke="#c9a227" strokeWidth="1.5" opacity="0.6" />
+                <polygon points="40,4 46,12 40,20 34,12" fill="#8fdc1c" stroke="#c9a227" strokeWidth="1.5" />
+                <line x1="48" y1="12" x2="80" y2="12" stroke="#c9a227" strokeWidth="1.5" opacity="0.6" />
               </svg>
-            </div>
+            </motion.div>
 
-            <p className={`${display.className} text-center text-3xl italic text-[#8c6a12] sm:text-4xl`}>
+            <motion.p variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }} className={`${display.className} text-center text-3xl italic text-[#8c6a12] sm:text-4xl drop-shadow-sm`}>
               A Brotherhood Forever
-            </p>
-            <p className="mt-3 text-center text-sm text-[#6b6450]">
-              With love and gratitude from your junior batch
-            </p>
+            </motion.p>
+            <motion.p variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }} className="mt-3 text-center text-sm uppercase tracking-widest text-[#6b6450]">
+              With love and gratitude from Batch 2022
+            </motion.p>
 
-            {/* Mini recap */}
-            <div className="mt-10 grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
+            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="mt-12 grid grid-cols-2 gap-6 text-center sm:grid-cols-4">
               {[
-                { label: "Date", value: "21 Nov 2026" },
-                { label: "Time", value: "8:00 PM" },
-                { label: "Venue", value: "Rajarata University" },
-                { label: "Dress", value: "See Invitation" },
+                { label: "Date", value: "21st Nov 2026" },
+                { label: "Time", value: "6:30 PM" },
+                { label: "Venue", value: "AVARAGIRA" },
+                { label: "Dress", value: "White / Black" },
               ].map((item) => (
-                <div key={item.label}>
-                  <p className="text-[10px] uppercase tracking-widest text-[#8c6a12]/70">
+                <div key={item.label} className="rounded-2xl bg-white/40 p-4 border border-[#c9a227]/20 shadow-sm">
+                  <p className="text-[10px] uppercase tracking-widest text-[#8c6a12]/80 font-semibold">
                     {item.label}
                   </p>
-                  <p className={`${display.className} mt-1 text-base font-semibold text-[#2a2418]`}>
+                  <p className={`${display.className} mt-1 text-lg font-semibold text-[#2a2418]`}>
                     {item.value}
                   </p>
                 </div>
               ))}
-            </div>
+            </motion.div>
 
-            {/* Divider */}
-            <div className="my-10 flex items-center justify-center gap-4">
-              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#c9a227]/40 to-transparent" />
-              <span className="text-xs text-[#8c6a12]">✦</span>
-              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#c9a227]/40 to-transparent" />
-            </div>
+            <motion.div variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }} className="my-12 flex items-center justify-center gap-4">
+              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#c9a227]/50 to-transparent" />
+              <span className="text-sm text-[#c9a227]">✦</span>
+              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#c9a227]/50 to-transparent" />
+            </motion.div>
 
-            <p className="text-center text-[11px] uppercase tracking-[0.25em] text-[#a09579]">
-              The Grand Going Down
-            </p>
-            <p className="mt-2 text-center text-[10px] text-[#a09579]/80">
-              Made with reverence{year ? ` · ${year}` : ""}
-            </p>
+            <motion.p variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }} className="text-center text-[12px] font-semibold uppercase tracking-[0.3em] text-[#8c6a12]">
+              VALINOR '26
+            </motion.p>
+            <motion.p variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }} className="mt-2 text-center text-[10px] uppercase tracking-widest text-[#a09579]">
+              Faculty of Management{year ? ` · ${year}` : ""}
+            </motion.p>
           </div>
         </motion.footer>
       </main>
